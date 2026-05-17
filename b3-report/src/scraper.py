@@ -89,25 +89,30 @@ def run_scraper() -> list[Path]:
 
             # Aguarda o campo de senha aparecer
             print("[scraper] Aguardando campo de senha...")
-            page.wait_for_selector('input[type="password"]', timeout=20_000)
-            page.fill('input[type="password"]', B3_PASSWORD)
+            pwd_input = page.wait_for_selector('input[type="password"]', timeout=20_000)
+            pwd_input.click()
+            pwd_input.type(B3_PASSWORD, delay=100)
+            # Dispara eventos para ativar o botão
+            pwd_input.dispatch_event("input")
+            pwd_input.dispatch_event("change")
+            time.sleep(1)
 
-            # Submete o login
-            page.click('button:has-text("Entrar"), button[type="submit"]')
-            page.wait_for_load_state("networkidle", timeout=30_000)
+            # Submete com Enter (mais confiável que clicar no botão)
+            pwd_input.press("Enter")
+            page.wait_for_load_state("domcontentloaded", timeout=30_000)
+            time.sleep(3)
 
-            # --- Navegar até Posição Consolidada ---
-            print("[scraper] Navegando para posição consolidada...")
-            # Aguarda o menu principal carregar
-            page.wait_for_selector('a:has-text("Posição"), nav', timeout=20_000)
-
-            # Tenta clicar no menu de posição
+            # --- Fecha popups se existirem ---
             try:
-                page.click('a:has-text("Posição Consolidada")', timeout=10_000)
+                page.click('button[aria-label="Close"], button[aria-label="Fechar"], button.close, [class*="close"]', timeout=5_000)
+                time.sleep(1)
             except PlaywrightTimeout:
-                page.click('a:has-text("Posição")', timeout=10_000)
+                pass  # sem popup, tudo bem
 
-            page.wait_for_load_state("networkidle", timeout=20_000)
+            # --- Navegar até Posição Consolidada via URL direta ---
+            print("[scraper] Navegando para posição consolidada...")
+            page.goto("https://www.investidor.b3.com.br/posicao-consolidada", wait_until="domcontentloaded", timeout=30_000)
+            time.sleep(3)
 
             # --- Download do relatório ---
             print("[scraper] Baixando relatório...")
